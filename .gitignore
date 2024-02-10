@@ -1,3 +1,5 @@
 .idea/
 .vscode/
 .docker-compose.yml
+.github
+airdcpp
