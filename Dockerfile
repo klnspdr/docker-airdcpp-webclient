@@ -1,20 +1,11 @@
-ARG distro=stable-slim
+ARG distro=bullseye-slim
 FROM debian:${distro}
 
 ARG dl_url="https://web-builds.airdcpp.net/stable/airdcpp_latest_master_64-bit_portable.tar.gz"
 
-RUN installDeps=' \
-        curl \
-        gnupg \
-    ' \
-    && runtimeDeps=' \
-        ca-certificates \
-        locales \
-        openssl \
-    ' \
-# Install dependencies
+RUN installDeps='curl gnupg' && runtimeDeps='ca-certificates locales openssl cifs-utils libcap2-bin' \
+    && apt-get update --no-list-cleanup\
     && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get update \
     && apt-get install -y --no-install-recommends ${installDeps} ${runtimeDeps} \
 # Install node.js to enable airdcpp extension support
     && curl -sL https://deb.nodesource.com/setup_18.x | bash - \
@@ -24,7 +15,7 @@ RUN installDeps=' \
     && curl --progress-bar ${dl_url} | tar -xz -C / \
 # Cleanup
     && apt-get purge --autoremove -y ${installDeps} \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt-get/lists/*
 
 # Configure locale
 ENV LANG en_US.UTF-8
@@ -34,14 +25,15 @@ RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
     && locale-gen && dpkg-reconfigure -f noninteractive locales
 
 # Create default directories
-RUN mkdir -p /.airdcpp /Downloads /Share \
+RUN mkdir -p /.airdcpp /Downloads /Share /mnt/smb-share \
     # Set permission on default directories
-    && chmod a+rwX /.airdcpp /Downloads /Share \
+    && chmod a+rwX /.airdcpp /Downloads /Share /mnt/smb-share \
     # Create symlink to configuration directory
     && ln -sf /.airdcpp /airdcpp-webclient/config \
     # Fix /favicon.ico 404 request
     && cd /airdcpp-webclient/web-resources \
     && ln -sf images/favicon.*.ico favicon.ico
+
 
 COPY .airdcpp/ /.default-config
 COPY entrypoint.sh /entrypoint.sh

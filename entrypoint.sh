@@ -58,6 +58,34 @@ take_ownership () {
     chmod -R u+rw /.airdcpp
 }
 
+mount_smb_share () {
+    # check whether container has required capabilites to mount the smb share
+    
+    if capsh --print | grep -q '!cap_sys_admin\|!cap_dac_read_search'; then
+        echo "The Docker container is missing one or both of the following capabilities; please add them:" && echo " - SYS_ADMIN" && echo " - DAC_READ_SEARCH"
+        exit 1
+    else
+        # check whether all the required environment variables are supplied
+        if [[ -z "${SMB_HOST}" || -z "${SMB_SHARE}" || -z "${SMB_USERNAME}" || -z "${SMB_PASSWORD}" ]]; then
+            echo "Please make sure all of the following environment variables are set:" && echo " - SMB_HOST " && echo " - SMB_SHARE " && echo " - SMB_USERNAME " && echo " - SMB_PASSWORD"
+            exit 1
+        else
+            # mount share
+            mount -t cifs //"$SMB_HOST"/"$SMB_SHARE" /mnt/smb-share -o username="$SMB_USERNAME",password="$SMB_PASSWORD"
+
+            # Check the exit status of the mount command
+            if [ $? -eq 0 ]; then
+                echo "SMB share mounted successfully at /mnt/smb-share"
+            else
+                echo "Error: failed to mount SMB share"
+                exit 1
+            fi
+        fi
+    fi
+
+    # mount SMB share
+}  
+
 if [[ ! -z "$LOG_STARTUP" ]]
 then
     set -x
@@ -87,6 +115,7 @@ else
     create_user_and_group
     take_ownership
     init_config
+    mount_smb_share
 
     # Start airdcppd
     exec runuser -u airdcpp -g airdcpp -- /airdcpp-webclient/airdcppd "$@"
